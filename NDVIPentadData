@@ -1,0 +1,125 @@
+/************************************
+ * USER CONFIGURATION
+ ************************************/
+
+// Change these to your own asset paths
+var TREE_ALL_ASSET = 'users/your_username/tree_all';
+var TREE_BATCH_1_ASSET = 'users/your_username/tree_batch_1';
+var TREE_BATCH_2_ASSET = 'users/your_username/tree_batch_2';
+var TREE_BATCH_3_ASSET = 'users/your_username/tree_batch_3';
+var TREE_BATCH_4_ASSET = 'users/your_username/tree_batch_4';
+var TREE_BATCH_5_ASSET = 'users/your_username/tree_batch_5';
+
+// Analysis parameters
+var START_DATE = '2018-01-01';
+var END_DATE   = '2024-07-01';
+var CLOUD_THRESH = 75;
+
+/************************************
+ * LOAD DATA
+ ************************************/
+var tree_all = ee.FeatureCollection(TREE_ALL_ASSET);
+var tree_batch_1 = ee.FeatureCollection(TREE_BATCH_1_ASSET);
+
+Map.addLayer(tree_all, {color: 'green'}, 'All Points');
+Map.centerObject(tree_all, 5);
+
+// REPEAT RUNS ON THE FOLLOWING SCRIPT FOR EVERY TREE BATCH BY CHANGING THE NAME
+
+// Load the Sentinel-2 Image Collection
+var s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', CLOUD_THRESH))
+  .filterDate(START_DATE, END_DATE)
+  .filterBounds(tree_batch_1);
+
+var s2Clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY')
+  .filterDate(START_DATE, END_DATE)
+  .filterBounds(tree_batch_1);
+
+// Define a join to add cloud probability images to Sentinel-2 images
+var join = ee.Join.inner();
+var joinFilter = ee.Filter.equals({
+  leftField: 'system:index',
+  rightField: 'system:index'
+});
+
+// Apply the join
+var joinedCollection = ee.ImageCollection(join.apply(s2, s2Clouds, joinFilter))
+  .map(function(feature) {
+    var s2Image = ee.Image(feature.get('primary'));
+    var cloudImage = ee.Image(feature.get('secondary'));
+    return s2Image.addBands(cloudImage.select('probability').rename('cloud_prob'));
+  })
+  .map(function(image) {
+    var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI'); //extract NDVI
+    return image.addBands(ndvi); // add NDVI
+  })
+  .select(['NDVI', 'cloud_prob']); // select only NDVI and cloud probability bands
+
+
+// Add tree_ID as a property
+var trees_property = tree_100000.map(function(feature) {
+  var coords = feature.geometry().coordinates();
+  var lat = coords.get(1);  // Latitude is the second value
+  var lon = coords.get(0);  // Longitude is the first value
+
+  // Set the 'tree_ID', 'latitude', and 'longitude' properties
+  return feature.set({
+    'tree_ID': feature.get('tree_id_num'),
+    'latitude': lat,
+    'longitude': lon
+  });
+});
+
+// Function to calculate the start and end of each pentad
+var getPentadDates = function(year, pentad) {
+  var startDate = ee.Date.fromYMD(year, 1, 1).advance(ee.Number(pentad).subtract(1).multiply(5), 'day');
+  var endDate = startDate.advance(4, 'day');
+  return { startDate: startDate, endDate: endDate };
+};
+
+// Define years and pentads
+var years = ee.List.sequence(2018, 2024);
+var pentads = ee.List.sequence(1, 73);  // Each year has 73 pentads (5-day periods)
+
+// Calculate mean NDVI and cloud probability by pentad and year
+var ndviAndCloudByPentadYear = ee.ImageCollection.fromImages(
+  years.map(function(y) {
+    return pentads.map(function(p) {
+      var dates = getPentadDates(y, p); // Get start and end dates for the pentad
+      var startDate = dates.startDate;
+      var endDate = dates.endDate;
+
+      var mean = joinedCollection
+        .filterDate(startDate, endDate)
+        .mean()
+        .set('pentad', p)
+        .set('year', y);
+      return mean.set('empty', mean.bandNames().size().eq(0));
+    });
+  }).flatten());
+
+// Calculate NDVI and cloud probability by region (points) for each pentad
+var byRegion = ndviAndCloudByPentadYear
+  .filter(ee.Filter.eq('empty', 0))  // Remove pentads without imagery
+  .map(function(pentadData) {
+    return pentadData
+      .reduceRegions({
+        collection: trees_property,
+        reducer: ee.Reducer.mean(),
+        scale: 10
+      })
+      .map(function(feature) {
+        return feature
+          .copyProperties(pentadData, pentadData.propertyNames());
+      });
+  })
+  .flatten();
+
+// Export the results to Google Drive as CSV
+Export.table.toDrive({
+  collection: byRegion,
+  description: 'TREE_BATCH_1_NDVI',
+  fileFormat: 'CSV',
+  selectors: ['tree_ID', 'latitude', 'longitude', 'year', 'pentad', 'NDVI', 'cloud_prob']
+});
