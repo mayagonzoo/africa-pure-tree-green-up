@@ -1,0 +1,51 @@
+/// USER CONFIGURATION
+// Asset paths
+var tree_asset = 'users/your_username/TREE_100000';
+var sand_asset = 'projects/soilgrids-isric/sand_mean';
+
+// Tree locations (FeatureCollection of tree_ID + coordinates)
+var trees = ee.FeatureCollection(tree_asset);
+
+// SoilGrids Sand Content
+var sand = ee.Image(sand_asset).select([
+  'sand_0-5cm_mean',
+  'sand_5-15cm_mean',
+  'sand_15-30cm_mean',
+  'sand_30-60cm_mean',
+  'sand_60-100cm_mean',
+  'sand_100-200cm_mean'
+]);
+
+// Visualization (optional)
+Map.setCenter(26, -25, 6);
+
+var pointsVis = trees.style({
+  color: 'green',
+  pointSize: 1
+});
+
+Map.addLayer(pointsVis, {}, 'Tree locations');
+
+// Sample sand content at tree points
+var sandSampled = sand.sampleRegions({
+  collection: trees,
+  scale: 250,        // Native resolution of SoilGrids
+  geometries: true   // Retain geometry for lat/lon extraction
+});
+
+// Add latitude and longitude fields
+var sandWithLatLon = sandSampled.map(function(feature) {
+  var coords = feature.geometry().coordinates();
+  return feature.set({
+    longitude: coords.get(0),
+    latitude: coords.get(1)
+  });
+});
+
+
+// Export to Google Drive
+Export.table.toDrive({
+  collection: sandWithLatLon,
+  description: 'Sand_content_tree_100000',
+  fileFormat: 'CSV'
+});
