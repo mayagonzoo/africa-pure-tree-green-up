@@ -1,0 +1,51 @@
+/// USER CONFIGURATION
+// Asset paths
+var tree_asset = 'projects/maya-uga-project/assets/TREE_100000';
+var clay_asset = 'projects/soilgrids-isric/clay_mean';
+
+// Tree locations (FeatureCollection of tree_ID + coordinates)
+var trees = ee.FeatureCollection(tree_asset);
+
+// SoilGrids Clay Content
+var clay = ee.Image(clay_asset).select([
+  'clay_0-5cm_mean',
+  'clay_5-15cm_mean',
+  'clay_15-30cm_mean',
+  'clay_30-60cm_mean',
+  'clay_60-100cm_mean',
+  'clay_100-200cm_mean'
+]);
+
+// Visualization (optional)
+Map.setCenter(26, -25, 6);
+
+var pointsVis = trees.style({
+  color: 'green',
+  pointSize: 1
+});
+
+Map.addLayer(pointsVis, {}, 'Tree locations');
+
+// Sample clay content at tree points
+var claySampled = clay.sampleRegions({
+  collection: trees,
+  scale: 250,        // Native resolution of SoilGrids
+  geometries: true   // Retain geometry for lat/lon extraction
+});
+
+// Add latitude and longitude fields
+var clayWithLatLon = claySampled.map(function(feature) {
+  var coords = feature.geometry().coordinates();
+  return feature.set({
+    longitude: coords.get(0),
+    latitude: coords.get(1)
+  });
+});
+
+
+// Export to Google Drive
+Export.table.toDrive({
+  collection: clayWithLatLon,
+  description: 'Clay_content_tree_100000',
+  fileFormat: 'CSV'
+});
