@@ -16,20 +16,25 @@ All other datasets used in this analysis were derived from the following publicl
 
 Scripts must be run in the following order. Outputs from each step are used as inputs for subsequent steps.
 
-1. **[Pheno_processing_100000_tr.R](Pheno_processing_100000_tr.R)**  
+1. **[Trees_random_100000.R](Trees_random_100000.R)**  
+   *Samples 100,000 pure tree points from ~294,000 initially extracted from Reiner et al. (2023) rasters.*    
+   **Outputs (too large for repo):**  
+   - TREE_BATCH_1.csv through TREE_BATCH_5.csv
+
+2. **[Pheno_processing_100000_tr.R](Pheno_processing_100000_tr.R)  
    *Processes Sentinel-2 NDVI time series and detects green-up day (GUD).*  
    **Outputs:**  
-   - hundred_thousand_NDVI_time_series.csv  
+   - hundred_thousand_NDVI_time_series.csv  (too large for repo)
    - `GUP.csv`
 
-2. **[Rain_Data.R](Rain_Data.R)**  
+3. **[Rain_Data.R](Rain_Data.R)**  
    *Processes CHIRPS rainfall data and computes start of the rainy season (SRS).*  
    **Inputs:**  
    - `GUP.csv`  
    **Outputs:**  
    - `Pheno_rain_annual_100000_trees.csv`
 
-3. **[Seasonality_screen_pheno_metrics.R](Seasonality_screen_pheno_metrics.R)**  
+4. **[Seasonality_screen_pheno_metrics.R](Seasonality_screen_pheno_metrics.R)**  
    *Screens NDVI time series for bimodality and computes phenological metrics.*  
    **Inputs:**  
    - hundred_thousand_NDVI_time_series.csv  
@@ -37,7 +42,7 @@ Scripts must be run in the following order. Outputs from each step are used as i
    **Outputs:**  
    - `Full_pheno_params_cleaned.csv`
 
-4. **[Data_downsampling.R](Data_downsampling.R)**  
+5. **[Data_downsampling.R](Data_downsampling.R)**  
    *Integrates environmental variables and downsamples the dataset for spatial modeling.*  
    **Inputs:**  
    - `Pheno_rain_annual_100000_trees.csv`  
@@ -49,7 +54,7 @@ Scripts must be run in the following order. Outputs from each step are used as i
    - `Final_8500_pts.csv`  
    - `subset_dNDVI_pts.csv`  
 
-5. **[Spatial_modelling.R](Spatial_modelling.R)**  
+6. **[Spatial_modelling.R](Spatial_modelling.R)**  
    *Fits spatial autoregressive models for green-up timing and pre-rain productivity.*  
    **Inputs:**  
    - `Final_8500_pts.csv`  
