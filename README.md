@@ -28,11 +28,14 @@ Scripts must be run in the following order. Outputs from each step are used as i
 3. **[Pheno_processing_100000_tr.R](Pheno_processing_100000_tr.R)**  
    *Processes Sentinel-2 NDVI time series and detects green-up day (GUD).*
 
+   **Inputs (too large for repo):**
+   - `TREE_BATCH_1.csv` through `TREE_BATCH_5.csv`
+
    **Outputs:**
    - `hundred_thousand_NDVI_time_series.csv` (too large for repo)
    - `GUP.csv`
 
-4. **[Rain_Data.R](Rain_Data.R)**  
+5. **[Rain_Data.R](Rain_Data.R)**  
    *Processes CHIRPS rainfall data and computes start of the rainy season (SRS).*
 
    **Inputs:**
@@ -41,7 +44,7 @@ Scripts must be run in the following order. Outputs from each step are used as i
    **Outputs:**
    - `Pheno_rain_annual_100000_trees.csv`
 
-5. **[Seasonality_screen_pheno_metrics.R](Seasonality_screen_pheno_metrics.R)**  
+6. **[Seasonality_screen_pheno_metrics.R](Seasonality_screen_pheno_metrics.R)**  
    *Screens NDVI time series for bimodality and computes phenological metrics.*
 
    **Inputs:**
@@ -52,7 +55,7 @@ Scripts must be run in the following order. Outputs from each step are used as i
    - `Full_pheno_params_cleaned.csv`
 
 
-6. **[Data_downsampling.R](Data_downsampling.R)**  
+7. **[Data_downsampling.R](Data_downsampling.R)**  
    *Integrates environmental variables and downsamples the dataset for spatial modeling.*  
    **Inputs:**  
    - `Pheno_rain_annual_100000_trees.csv`  
@@ -65,7 +68,7 @@ Scripts must be run in the following order. Outputs from each step are used as i
    - `Final_8500_pts.csv`  
    - `subset_dNDVI_pts.csv`  
 
-7. **[Spatial_modelling.R](Spatial_modelling.R)**  
+8. **[Spatial_modelling.R](Spatial_modelling.R)**  
    *Fits spatial autoregressive models for green-up timing and pre-rain productivity.*  
    **Inputs:**  
    - `Final_8500_pts.csv`  
