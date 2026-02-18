@@ -1,0 +1,106 @@
+/// USER CONFIGURATION
+// Asset paths
+var tree_asset = 'users/your_username/TREE_100000';
+
+// Tree locations (FeatureCollection with tree_ID and coordinates)
+var trees = ee.FeatureCollection(tree_asset);
+
+/// From NASADEM ///
+var dem = ee.Image('NASA/NASADEM_HGT/001');
+var elevation = dem.select('elevation');
+var slope  = ee.Terrain.slope(elevation);
+
+
+// Finite-difference kernels for curvature estimation
+var kernelX = ee.Kernel.fixed(3, 3, [
+  [-1,  0,  1],
+  [-2,  0,  2],
+  [-1,  0,  1]
+]);
+
+var kernelY = ee.Kernel.fixed(3, 3, [
+  [-1, -2, -1],
+  [ 0,  0,  0],
+  [ 1,  2,  1]
+]);
+
+// First derivatives
+var dzdx = elevation.convolve(kernelX);
+var dzdy = elevation.convolve(kernelY);
+
+// Second-derivative kernels
+var kernelXX = ee.Kernel.fixed(3, 3, [
+  [ 1, -2,  1],
+  [ 2, -4,  2],
+  [ 1, -2,  1]
+]);
+
+var kernelYY = ee.Kernel.fixed(3, 3, [
+  [ 1,  2,  1],
+  [-2, -4, -2],
+  [ 1,  2,  1]
+]);
+
+// Second derivatives
+var d2zdx2 = elevation.convolve(kernelXX);
+var d2zdy2 = elevation.convolve(kernelYY);
+
+// Curvature approximation
+var curvature = d2zdx2.add(d2zdy2).rename('curvature');
+
+// Additional NASADEM bands
+var num = dem.select('num');
+var swb = dem.select('swb');
+
+
+// Stack variables
+var combinedImage = elevation.addBands([
+  num, swb, 
+  slope.rename('slope'),
+  curvature //Add curvature
+  ]);
+
+
+// Visualization 
+var elevationVis = {
+  min: 0,
+  max: 2000,
+};
+
+Map.centerObject(trees, 5);
+// Set vis params
+var pointsVis = trees.style({
+  color: 'green',
+  pointSize: 1
+});
+
+Map.addLayer(pointsVis, {}, 'pointsVis');
+
+
+// Sample the elevation, num, swb, and slope data at the points
+var sampledData = combinedImage.reduceRegions({
+  collection: trees,
+  reducer: ee.Reducer.first(),
+  scale: 30
+});
+
+// Ensure tree_id_num is explicitly retained
+var sampledWithLatLon = sampledData.map(function(feature) {
+  var coords = feature.geometry().coordinates();
+  return feature.set({
+    latitude: coords.get(1),
+    longitude: coords.get(0),
+    tree_ID: feature.get('tree_id_num') // Preserve tree_id_num
+  });
+});
+
+// Export the sampled data as a CSV
+Export.table.toDrive({
+  collection: sampledWithLatLon,
+  description: 'DEMData_100000_trees',
+  fileFormat: 'CSV',
+  selectors: [
+    'tree_ID', 'latitude', 'longitude', 'elevation', 'slope', 'curvature', 
+    'swb', 'num'
+  ] // Ensure tree_id_num is included in the selectors
+});
