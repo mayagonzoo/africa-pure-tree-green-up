@@ -1,5 +1,4 @@
 # ============================================================
-# Title: Time series Screen and Additional Phenology Metrics
 # Author: Maya Gonzalez
 # Date: July 2025
 #
